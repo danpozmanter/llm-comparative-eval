@@ -1,0 +1,127 @@
+# AI Model Evaluation Configuration
+# This file defines multiple evaluation scenarios for testing AI models
+
+# First evaluation: General knowledge and reasoning
+[[evaluations]]
+api_endpoint = "https://api.together.xyz/v1"
+env_var_api_key = "TOGETHER_AI_API_KEY"
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+temperature = 0.7
+max_tokens = 500
+rate_limit_rps = 0.25
+
+prompts = [
+    "What is the capital of France and why is it historically significant?",
+    "Explain quantum entanglement in simple terms that a high school student could understand.",
+    "What are the main causes of climate change and what can individuals do to help?",
+    "Compare and contrast democracy and authoritarianism as forms of government.",
+    "Explain the concept of compound interest and provide a practical example."
+]
+
+eval_api_endpoint = "https://api.together.xyz/v1"
+eval_env_var_api_key = "TOGETHER_AI_API_KEY"
+eval_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+eval_rate_limit_rps = 0.25
+eval_prompt = "Evaluate this response for {categories}. Provide detailed feedback on accuracy, clarity, and completeness."
+eval_categories = ["accuracy", "clarity", "completeness", "helpfulness"]
+storage_path = "./results/general_knowledge.json"
+
+# Second evaluation: Creative writing tasks
+[[evaluations]]
+api_endpoint = "https://api.together.xyz/v1"
+env_var_api_key = "TOGETHER_AI_API_KEY"
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+temperature = 0.9
+max_tokens = 750
+rate_limit_rps = 0.25
+
+prompts = [
+    "Write a short story about a time traveler who accidentally changes history.",
+    "Create a haiku about the changing seasons.",
+    "Write a persuasive argument for why people should learn a second language.",
+    "Compose a children's bedtime story about a friendly dragon.",
+    "Write a product description for an imaginary invention that solves a common problem."
+]
+
+eval_api_endpoint = "https://api.together.xyz/v1"
+eval_env_var_api_key = "TOGETHER_AI_API_KEY"
+eval_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+eval_rate_limit_rps = 0.25
+eval_prompt = "Evaluate this creative writing response for {categories}. Consider the quality of storytelling, language use, and engagement."
+eval_categories = ["creativity", "engagement", "coherence", "language_quality"]
+storage_path = "./results/creative_writing.json"
+
+# Third evaluation: Technical and problem-solving tasks
+[[evaluations]]
+api_endpoint = "https://api.together.xyz/v1"
+env_var_api_key = "TOGETHER_AI_API_KEY"
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+temperature = 0.3
+max_tokens = 800
+rate_limit_rps = 0.25
+
+prompts = [
+    "Explain how to implement a binary search algorithm in Python, including time complexity analysis.",
+    "What are the key differences between SQL and NoSQL databases? When would you use each?",
+    "Describe the steps to troubleshoot a website that is loading slowly.",
+    "Explain the concept of machine learning overfitting and how to prevent it.",
+    "How would you design a simple REST API for a todo list application?"
+]
+
+eval_api_endpoint = "https://api.together.xyz/v1"
+eval_env_var_api_key = "TOGETHER_AI_API_KEY"
+eval_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+eval_rate_limit_rps = 0.25
+eval_prompt = "Evaluate this technical response for {categories}. Focus on technical accuracy, practical applicability, and clarity of explanation."
+eval_categories = ["technical_accuracy", "completeness", "clarity", "practicality"]
+storage_path = "./results/technical_tasks.json"
+
+# Fourth evaluation: Ethical reasoning and critical thinking
+[[evaluations]]
+api_endpoint = "https://api.together.xyz/v1"
+env_var_api_key = "TOGETHER_AI_API_KEY"
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+temperature = 0.5
+max_tokens = 600
+rate_limit_rps = 0.25
+
+prompts = [
+    "What are the ethical implications of artificial intelligence in healthcare decision-making?",
+    "Should social media companies be held responsible for the content posted by their users? Discuss both sides.",
+    "What are the potential benefits and risks of genetic engineering in humans?",
+    "How should society balance individual privacy rights with collective security needs?",
+    "What ethical considerations should guide the development of autonomous vehicles?"
+]
+
+eval_api_endpoint = "https://api.together.xyz/v1"
+eval_env_var_api_key = "TOGETHER_AI_API_KEY"
+eval_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+eval_rate_limit_rps = 0.25
+eval_prompt = "Evaluate this ethical reasoning response for {categories}. Look for balanced perspectives, logical reasoning, and consideration of multiple viewpoints."
+eval_categories = ["balance", "reasoning_quality", "depth", "perspective_diversity"]
+storage_path = "./results/ethical_reasoning.json"
+
+# Fifth evaluation: Math and logical reasoning
+[[evaluations]]
+api_endpoint = "https://api.together.xyz/v1"
+env_var_api_key = "TOGETHER_AI_API_KEY"
+model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+temperature = 0.1
+max_tokens = 400
+rate_limit_rps = 0.25
+
+prompts = [
+    "If a train travels 120 miles in 2 hours, and then 180 miles in the next 3 hours, what is its average speed for the entire journey?",
+    "Solve for x: 2x + 5 = 3x - 7. Show your work step by step.",
+    "A rectangle has a length that is 3 times its width. If the perimeter is 32 units, what are the dimensions?",
+    "What is the probability of rolling two dice and getting a sum of 7?",
+    "If you invest $1000 at 5% annual interest compounded annually, how much will you have after 10 years?"
+]
+
+eval_api_endpoint = "https://api.together.xyz/v1"
+eval_env_var_api_key = "TOGETHER_AI_API_KEY"
+eval_model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+eval_rate_limit_rps = 0.25
+eval_prompt = "Evaluate this mathematical response for {categories}. Check for correct calculations, clear step-by-step reasoning, and proper mathematical notation."
+eval_categories = ["mathematical_accuracy", "step_clarity", "completeness", "notation_quality"]
+storage_path = "./results/math_reasoning.json"
