@@ -279,9 +279,8 @@ impl EvaluationService {
                 }
             }
             None => {
-                for category in categories {
-                    scores.insert(category.clone(), 0.0);
-                }
+                // Don't populate with default values when no scores object exists
+                // Leave the HashMap empty
             }
         }
 

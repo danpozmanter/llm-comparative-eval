@@ -154,7 +154,7 @@ eval_categories = ["correctness"]
         let config = Config::from_file(temp_file.path()).unwrap();
         assert_eq!(config.evaluations[0].temperature, 0.7);
         assert_eq!(config.evaluations[0].max_tokens, 1000);
-        assert_eq!(config.evaluations[0].rate_limit_rps, 10.0);
-        assert_eq!(config.evaluations[0].eval_rate_limit_rps, 10.0);
+        assert_eq!(config.evaluations[0].rate_limit_rps, 0.25);
+        assert_eq!(config.evaluations[0].eval_rate_limit_rps, 0.25);
     }
 }
