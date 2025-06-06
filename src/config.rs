@@ -5,6 +5,8 @@ use std::path::Path;
 /// Configuration for a single evaluation run
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EvaluationConfig {
+    // Use case title
+    pub title: String,
     /// OpenAI API endpoint
     pub api_endpoint: String,
     /// Environment variable name containing the API key
@@ -103,6 +105,7 @@ mod tests {
     fn test_config_parsing() {
         let toml_content = r#"
 [[evaluations]]
+title = "general"
 api_endpoint = "https://api.openai.com/v1"
 env_var_api_key = "OPENAI_API_KEY"
 model = "gpt-4"
@@ -137,6 +140,7 @@ storage_path = "/tmp/responses.json"
     fn test_config_defaults() {
         let toml_content = r#"
 [[evaluations]]
+title = "general"
 api_endpoint = "https://api.openai.com/v1"
 env_var_api_key = "OPENAI_API_KEY"
 model = "gpt-4"

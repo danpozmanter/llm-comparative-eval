@@ -3,6 +3,7 @@
 
 # First evaluation: General knowledge and reasoning
 [[evaluations]]
+title = "General Knowledge"
 api_endpoint = "https://api.together.xyz/v1"
 env_var_api_key = "TOGETHER_AI_API_KEY"
 model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
@@ -53,6 +54,7 @@ storage_path = "./results/creative_writing.json"
 
 # Third evaluation: Technical and problem-solving tasks
 [[evaluations]]
+title = "Technical Tasks"
 api_endpoint = "https://api.together.xyz/v1"
 env_var_api_key = "TOGETHER_AI_API_KEY"
 model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
@@ -78,6 +80,7 @@ storage_path = "./results/technical_tasks.json"
 
 # Fourth evaluation: Ethical reasoning and critical thinking
 [[evaluations]]
+title = "Ethical Reasoning"
 api_endpoint = "https://api.together.xyz/v1"
 env_var_api_key = "TOGETHER_AI_API_KEY"
 model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
@@ -103,6 +106,7 @@ storage_path = "./results/ethical_reasoning.json"
 
 # Fifth evaluation: Math and logical reasoning
 [[evaluations]]
+title = "Math"
 api_endpoint = "https://api.together.xyz/v1"
 env_var_api_key = "TOGETHER_AI_API_KEY"
 model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"

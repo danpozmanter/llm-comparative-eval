@@ -1,5 +1,17 @@
 # llm-comparative-eval
-Compare how llm models stack up
+Compare how llm models stack up.
+
+## Intro
+
+Prompt engineering can be tricky, as can selecting the right model for the use case at hand.
+
+I wrote this to have a resource friendly and reliable CLI tool to evaluate prompts and models.
+
+1. For each evaluation, select the model and give it a list of prompts. (These can be quite different, or small variations).
+
+2. Then select the model and prompt to use to evaluate the results.
+
+3. Look at the results from prompt to prompt, or look at the overall stats for the entire evaluation.
 
 ## Usage
 
@@ -27,6 +39,7 @@ Example:
 
 ```toml
 [[evaluations]]
+title = "General Knowledge"
 api_endpoint = "https://api.together.xyz/v1"
 env_var_api_key = "TOGETHER_AI_API_KEY"
 model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"

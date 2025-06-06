@@ -387,6 +387,7 @@ mod tests {
 
     fn create_test_config() -> EvaluationConfig {
         EvaluationConfig {
+            title: "test".to_string(),
             api_endpoint: "https://api.openai.com/v1".to_string(),
             env_var_api_key: "TEST_API_KEY".to_string(),
             model: "gpt-4".to_string(),

@@ -45,6 +45,9 @@ impl Runner {
         eval_num: usize,
         total_evaluations: usize,
     ) -> Result<FinalResults> {
+        if self.verbose {
+            println!("Running evaluation {:?}", config.title);
+        }
         let prompt_results = self.process_all_prompts(config, eval_num, total_evaluations).await?;
         let statistics = self.calculate_evaluation_statistics(&prompt_results, config, eval_num, total_evaluations);
         let final_results = FinalResults { statistics, results: prompt_results };
@@ -274,6 +277,7 @@ mod tests {
 
     fn create_test_config() -> EvaluationConfig {
         EvaluationConfig {
+            title: "test".to_string(),
             api_endpoint: "https://api.openai.com/v1".to_string(),
             env_var_api_key: "TEST_API_KEY".to_string(),
             model: "gpt-4".to_string(),
@@ -336,6 +340,7 @@ mod tests {
     
         fn create_test_config() -> EvaluationConfig {
             EvaluationConfig {
+                title: "test".to_string(),
                 api_endpoint: "https://api.openai.com/v1".to_string(),
                 env_var_api_key: "TEST_API_KEY".to_string(),
                 model: "gpt-4".to_string(),
