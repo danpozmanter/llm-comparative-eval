@@ -11,6 +11,9 @@ pub struct EvaluationConfig {
     pub env_var_api_key: String,
     /// Model to use for generating responses
     pub model: String,
+    /// System prompt for the main model
+    #[serde(default = "default_system_prompt")]
+    pub system_prompt: String,
     /// Temperature for response generation (0.0 to 1.0)
     #[serde(default = "default_temperature")]
     pub temperature: f64,
@@ -28,6 +31,9 @@ pub struct EvaluationConfig {
     pub eval_env_var_api_key: String,
     /// Model to use for evaluation
     pub eval_model: String,
+    /// System prompt for the evaluation model
+    #[serde(default = "default_eval_system_prompt")]
+    pub eval_system_prompt: String,
     /// Rate limit for evaluation API requests per second
     #[serde(default = "default_rate_limit")]
     pub eval_rate_limit_rps: f64,
@@ -52,6 +58,14 @@ fn default_rate_limit() -> f64 {
     0.25
 }
 
+fn default_system_prompt() -> String {
+    "You are a helpful assistant.".to_string()
+}
+
+fn default_eval_system_prompt() -> String {
+    "You are an expert evaluator. Always return valid JSON.".to_string()
+}
+
 /// Root configuration containing list of evaluations
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
@@ -62,10 +76,19 @@ pub struct Config {
 impl Config {
     /// Load configuration from a TOML file
     pub fn from_file(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        let content = Self::read_config_file(path)?;
+        Self::parse_config_content(&content, path)
+    }
 
-        toml::from_str(&content)
+    /// Read the configuration file content
+    fn read_config_file(path: &Path) -> Result<String> {
+        std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))
+    }
+
+    /// Parse the configuration content from TOML
+    fn parse_config_content(content: &str, path: &Path) -> Result<Self> {
+        toml::from_str(content)
             .with_context(|| format!("Failed to parse TOML config: {}", path.display()))
     }
 }

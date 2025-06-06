@@ -25,8 +25,6 @@ impl Runner {
     pub async fn run_evaluations(&mut self) -> Result<Vec<FinalResults>> {
         let mut all_results = Vec::new();
         let total_evaluations = self.config.evaluations.len();
-
-        // Clone the evaluations to avoid borrowing issues
         let evaluations = self.config.evaluations.clone();
 
         for (eval_index, eval_config) in evaluations.iter().enumerate() {
@@ -47,35 +45,65 @@ impl Runner {
         eval_num: usize,
         total_evaluations: usize,
     ) -> Result<FinalResults> {
+        let prompt_results = self.process_all_prompts(config, eval_num, total_evaluations).await?;
+        let statistics = self.calculate_evaluation_statistics(&prompt_results, config, eval_num, total_evaluations);
+        let final_results = FinalResults { statistics, results: prompt_results };
+        
+        self.store_results_if_configured(&final_results, config, eval_num, total_evaluations)?;
+        
+        Ok(final_results)
+    }
+
+    /// Process all prompts for a single evaluation
+    async fn process_all_prompts(
+        &mut self,
+        config: &EvaluationConfig,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) -> Result<Vec<PromptResult>> {
         let mut prompt_results = Vec::new();
         let total_prompts = config.prompts.len();
 
-        // Process each prompt
         for (prompt_index, prompt) in config.prompts.iter().enumerate() {
             let prompt_num = prompt_index + 1;
-
-            if self.verbose {
-                println!(
-                    "Processing prompt {}/{}, evaluation {}/{}",
-                    prompt_num, total_prompts, eval_num, total_evaluations
-                );
-            }
-
+            
+            self.log_prompt_processing(prompt_num, total_prompts, eval_num, total_evaluations);
+            
             let result = self
-                .evaluate_single_prompt(
-                    config,
-                    prompt,
-                    prompt_num,
-                    total_prompts,
-                    eval_num,
-                    total_evaluations,
-                )
+                .evaluate_single_prompt(config, prompt, prompt_num, total_prompts, eval_num, total_evaluations)
                 .await
                 .with_context(|| format!("Failed to evaluate prompt: {}", prompt))?;
+            
             prompt_results.push(result);
         }
 
-        // Calculate statistics
+        Ok(prompt_results)
+    }
+
+    /// Log prompt processing status if verbose mode is enabled
+    fn log_prompt_processing(
+        &self,
+        prompt_num: usize,
+        total_prompts: usize,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) {
+        if self.verbose {
+            println!(
+                "Processing prompt {}/{}, evaluation {}/{}",
+                prompt_num, total_prompts, eval_num, total_evaluations
+            );
+        }
+    }
+
+    /// Calculate statistics for the evaluation
+    fn calculate_evaluation_statistics(
+        &mut self,
+        prompt_results: &[PromptResult],
+        config: &EvaluationConfig,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) -> crate::models::Statistics {
         if self.verbose {
             println!(
                 "Calculating statistics for evaluation {}/{}",
@@ -83,29 +111,33 @@ impl Runner {
             );
         }
 
-        let evaluations: Vec<&EvaluationResult> =
-            prompt_results.iter().map(|r| &r.evaluation).collect();
-        let statistics = self
-            .evaluation_service
-            .calculate_statistics(&evaluations, &config.eval_categories);
+        let evaluations: Vec<&EvaluationResult> = prompt_results.iter().map(|r| &r.evaluation).collect();
+        self.evaluation_service.calculate_statistics(&evaluations, &config.eval_categories)
+    }
 
-        let final_results = FinalResults {
-            statistics,
-            results: prompt_results,
-        };
-
-        // Store results if path is specified
+    /// Store results if storage path is configured
+    fn store_results_if_configured(
+        &self,
+        final_results: &FinalResults,
+        config: &EvaluationConfig,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) -> Result<()> {
         if let Some(storage_path) = &config.storage_path {
-            if self.verbose {
-                println!(
-                    "Storing results for evaluation {}/{} to {}",
-                    eval_num, total_evaluations, storage_path
-                );
-            }
-            self.store_results(&final_results, storage_path)?;
+            self.log_storage_operation(eval_num, total_evaluations, storage_path);
+            self.store_results(final_results, storage_path)?;
         }
+        Ok(())
+    }
 
-        Ok(final_results)
+    /// Log storage operation if verbose mode is enabled
+    fn log_storage_operation(&self, eval_num: usize, total_evaluations: usize, storage_path: &str) {
+        if self.verbose {
+            println!(
+                "Storing results for evaluation {}/{} to {}",
+                eval_num, total_evaluations, storage_path
+            );
+        }
     }
 
     /// Evaluate a single prompt and return the complete result
@@ -118,33 +150,8 @@ impl Runner {
         eval_num: usize,
         total_evaluations: usize,
     ) -> Result<PromptResult> {
-        // Generate response
-        if self.verbose {
-            println!(
-                "  → Generating response for prompt {}/{}, evaluation {}/{}",
-                prompt_num, total_prompts, eval_num, total_evaluations
-            );
-        }
-
-        let response = self
-            .evaluation_service
-            .generate_response(config, prompt)
-            .await
-            .context("Failed to generate response")?;
-
-        // Evaluate response
-        if self.verbose {
-            println!(
-                "  → Evaluating response for prompt {}/{}, evaluation {}/{}",
-                prompt_num, total_prompts, eval_num, total_evaluations
-            );
-        }
-
-        let evaluation = self
-            .evaluation_service
-            .evaluate_response(config, prompt, &response.content)
-            .await
-            .context("Failed to evaluate response")?;
+        let response = self.generate_prompt_response(config, prompt, prompt_num, total_prompts, eval_num, total_evaluations).await?;
+        let evaluation = self.evaluate_prompt_response(config, prompt, &response.content, prompt_num, total_prompts, eval_num, total_evaluations).await?;
 
         Ok(PromptResult {
             prompt: prompt.to_string(),
@@ -153,22 +160,109 @@ impl Runner {
         })
     }
 
+    /// Generate response for a single prompt
+    async fn generate_prompt_response(
+        &mut self,
+        config: &EvaluationConfig,
+        prompt: &str,
+        prompt_num: usize,
+        total_prompts: usize,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) -> Result<crate::models::ModelResponse> {
+        self.log_response_generation(prompt_num, total_prompts, eval_num, total_evaluations);
+        
+        self.evaluation_service
+            .generate_response(config, prompt)
+            .await
+            .context("Failed to generate response")
+    }
+
+    /// Log response generation if verbose mode is enabled
+    fn log_response_generation(
+        &self,
+        prompt_num: usize,
+        total_prompts: usize,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) {
+        if self.verbose {
+            println!(
+                "  → Generating response for prompt {}/{}, evaluation {}/{}",
+                prompt_num, total_prompts, eval_num, total_evaluations
+            );
+        }
+    }
+
+    /// Evaluate a single prompt response
+    async fn evaluate_prompt_response(
+        &mut self,
+        config: &EvaluationConfig,
+        prompt: &str,
+        response_content: &str,
+        prompt_num: usize,
+        total_prompts: usize,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) -> Result<EvaluationResult> {
+        self.log_response_evaluation(prompt_num, total_prompts, eval_num, total_evaluations);
+        
+        self.evaluation_service
+            .evaluate_response(config, prompt, response_content)
+            .await
+            .context("Failed to evaluate response")
+    }
+
+    /// Log response evaluation if verbose mode is enabled
+    fn log_response_evaluation(
+        &self,
+        prompt_num: usize,
+        total_prompts: usize,
+        eval_num: usize,
+        total_evaluations: usize,
+    ) {
+        if self.verbose {
+            println!(
+                "  → Evaluating response for prompt {}/{}, evaluation {}/{}",
+                prompt_num, total_prompts, eval_num, total_evaluations
+            );
+        }
+    }
+
     /// Store results to a JSON file
     fn store_results(&self, final_results: &FinalResults, path: &str) -> Result<()> {
-        let json_content = serde_json::to_string_pretty(final_results)
-            .context("Failed to serialize results to JSON")?;
+        let json_content = self.serialize_results(final_results)?;
+        self.ensure_directory_exists(path)?;
+        self.write_results_file(path, &json_content)?;
+        self.log_storage_success(path);
+        
+        Ok(())
+    }
 
+    /// Serialize results to JSON
+    fn serialize_results(&self, final_results: &FinalResults) -> Result<String> {
+        serde_json::to_string_pretty(final_results)
+            .context("Failed to serialize results to JSON")
+    }
+
+    /// Ensure the directory for the results file exists
+    fn ensure_directory_exists(&self, path: &str) -> Result<()> {
         if let Some(parent) = Path::new(path).parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
         }
-
-        std::fs::write(path, json_content)
-            .with_context(|| format!("Failed to write results to: {}", path))?;
-
-        println!("Results stored to: {}", path);
-
         Ok(())
+    }
+
+    /// Write results to file
+    fn write_results_file(&self, path: &str, content: &str) -> Result<()> {
+        std::fs::write(path, content)
+            .with_context(|| format!("Failed to write results to: {}", path))
+    }
+
+    /// Log successful storage operation
+    fn log_storage_success(&self, path: &str) {
+        println!("Results stored to: {}", path);
     }
 }
 
@@ -187,11 +281,13 @@ mod tests {
             max_tokens: 1000,
             rate_limit_rps: 10.0,
             prompts: vec!["Test prompt".to_string()],
+            system_prompt: "Test system prompt".to_string(),
             eval_api_endpoint: "https://api.openai.com/v1".to_string(),
             eval_env_var_api_key: "TEST_EVAL_API_KEY".to_string(),
             eval_model: "gpt-4".to_string(),
             eval_rate_limit_rps: 10.0,
             eval_prompt: "Evaluate for {categories}".to_string(),
+            eval_system_prompt: "Test system prompt".to_string(),
             eval_categories: vec!["correctness".to_string()],
             storage_path: None,
         }
@@ -247,11 +343,13 @@ mod tests {
                 max_tokens: 1000,
                 rate_limit_rps: 10.0,
                 prompts: vec!["Test prompt".to_string()],
+                system_prompt: "Test system prompt".to_string(),
                 eval_api_endpoint: "https://api.openai.com/v1".to_string(),
                 eval_env_var_api_key: "TEST_EVAL_API_KEY".to_string(),
                 eval_model: "gpt-4".to_string(),
                 eval_rate_limit_rps: 10.0,
                 eval_prompt: "Evaluate for {categories}".to_string(),
+                eval_system_prompt: "Test system prompt".to_string(),
                 eval_categories: vec!["correctness".to_string()],
                 storage_path: None,
             }
