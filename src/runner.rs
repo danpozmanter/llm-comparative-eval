@@ -1,5 +1,5 @@
 use crate::config::{Config, EvaluationConfig};
-use crate::evaluation::EvaluationService;
+use crate::evaluation::Evaluator;
 use crate::models::{EvaluationResult, FinalResults, PromptResult};
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -7,7 +7,7 @@ use std::path::Path;
 /// Main runner that orchestrates the evaluation process
 pub struct Runner {
     config: Config,
-    evaluation_service: EvaluationService,
+    evaluator: Evaluator,
     verbose: bool,
 }
 
@@ -16,7 +16,7 @@ impl Runner {
     pub fn new(config: Config, verbose: bool) -> Self {
         Self {
             config,
-            evaluation_service: EvaluationService::new(),
+            evaluator: Evaluator::new(),
             verbose,
         }
     }
@@ -112,7 +112,7 @@ impl Runner {
         }
 
         let evaluations: Vec<&EvaluationResult> = prompt_results.iter().map(|r| &r.evaluation).collect();
-        self.evaluation_service.calculate_statistics(&evaluations, &config.eval_categories)
+        self.evaluator.calculate_statistics(&evaluations, &config.eval_categories)
     }
 
     /// Store results if storage path is configured
@@ -172,7 +172,7 @@ impl Runner {
     ) -> Result<crate::models::ModelResponse> {
         self.log_response_generation(prompt_num, total_prompts, eval_num, total_evaluations);
         
-        self.evaluation_service
+        self.evaluator
             .generate_response(config, prompt)
             .await
             .context("Failed to generate response")
@@ -207,7 +207,7 @@ impl Runner {
     ) -> Result<EvaluationResult> {
         self.log_response_evaluation(prompt_num, total_prompts, eval_num, total_evaluations);
         
-        self.evaluation_service
+        self.evaluator
             .evaluate_response(config, prompt, response_content)
             .await
             .context("Failed to evaluate response")
@@ -370,13 +370,13 @@ mod tests {
             config
         }
     
-        // Mock EvaluationService for testing
-        struct MockEvaluationService {
+        // Mock Evaluator for testing
+        struct MockEvaluator {
             should_fail_generate: bool,
             should_fail_evaluate: bool,
         }
     
-        impl MockEvaluationService {
+        impl MockEvaluator {
             fn new() -> Self {
                 Self {
                     should_fail_generate: false,
@@ -474,7 +474,7 @@ mod tests {
         // Test Runner struct that allows injecting mock service
         struct TestRunner {
             config: Config,
-            mock_service: MockEvaluationService,
+            mock_service: MockEvaluator,
             verbose: bool,
         }
     
@@ -482,7 +482,7 @@ mod tests {
             fn new(config: Config, verbose: bool) -> Self {
                 Self {
                     config,
-                    mock_service: MockEvaluationService::new(),
+                    mock_service: MockEvaluator::new(),
                     verbose,
                 }
             }
@@ -490,7 +490,7 @@ mod tests {
             fn with_generate_failure(config: Config, verbose: bool) -> Self {
                 Self {
                     config,
-                    mock_service: MockEvaluationService::with_generate_failure(),
+                    mock_service: MockEvaluator::with_generate_failure(),
                     verbose,
                 }
             }
@@ -498,7 +498,7 @@ mod tests {
             fn with_evaluate_failure(config: Config, verbose: bool) -> Self {
                 Self {
                     config,
-                    mock_service: MockEvaluationService::with_evaluate_failure(),
+                    mock_service: MockEvaluator::with_evaluate_failure(),
                     verbose,
                 }
             }

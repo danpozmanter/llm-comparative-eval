@@ -7,16 +7,16 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
-/// Service for evaluating AI model responses with rate limiting
-pub struct EvaluationService {
+/// evaluator for evaluating AI model responses with rate limiting
+pub struct Evaluator {
     /// Last request time for main API endpoint
     last_api_request: Option<Instant>,
     /// Last request time for evaluation API endpoint
     last_eval_request: Option<Instant>,
 }
 
-impl EvaluationService {
-    /// Create a new evaluation service
+impl Evaluator {
+    /// Create a new evaluator
     pub fn new() -> Self {
         Self {
             last_api_request: None,
@@ -407,10 +407,10 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluation_service_new() {
-        let service = EvaluationService::new();
-        assert!(service.last_api_request.is_none());
-        assert!(service.last_eval_request.is_none());
+    fn test_evaluator_new() {
+        let evaluator = Evaluator::new();
+        assert!(evaluator.last_api_request.is_none());
+        assert!(evaluator.last_eval_request.is_none());
     }
 
     #[tokio::test]
@@ -418,7 +418,7 @@ mod tests {
         let mut last_request = None;
         let start = TokioInstant::now();
         
-        EvaluationService::enforce_rate_limit(&mut last_request, 0.0).await;
+        Evaluator::enforce_rate_limit(&mut last_request, 0.0).await;
         
         let elapsed = start.elapsed();
         assert!(elapsed < Duration::from_millis(10)); // Should return immediately
@@ -429,7 +429,7 @@ mod tests {
         let mut last_request = None;
         let start = TokioInstant::now();
         
-        EvaluationService::enforce_rate_limit(&mut last_request, -1.0).await;
+        Evaluator::enforce_rate_limit(&mut last_request, -1.0).await;
         
         let elapsed = start.elapsed();
         assert!(elapsed < Duration::from_millis(10)); // Should return immediately
@@ -440,7 +440,7 @@ mod tests {
         let mut last_request = None;
         let start = TokioInstant::now();
         
-        EvaluationService::enforce_rate_limit(&mut last_request, 10.0).await;
+        Evaluator::enforce_rate_limit(&mut last_request, 10.0).await;
         
         let elapsed = start.elapsed();
         assert!(elapsed < Duration::from_millis(10)); // Should not sleep on first request
@@ -453,7 +453,7 @@ mod tests {
         let start = TokioInstant::now();
         
         // Set a low rate limit to force sleep
-        EvaluationService::enforce_rate_limit(&mut last_request, 100.0).await;
+        Evaluator::enforce_rate_limit(&mut last_request, 100.0).await;
         
         let elapsed = start.elapsed();
         assert!(elapsed >= Duration::from_millis(8)); // Should have slept at least ~10ms minus some tolerance
@@ -461,7 +461,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_generate_response_missing_env_var() {
-        let mut service = EvaluationService::new();
+        let mut evaluator = Evaluator::new();
         let config = create_test_config();
         
         // Remove the environment variable if it exists
@@ -469,14 +469,14 @@ mod tests {
             std::env::remove_var(&config.env_var_api_key);
         }
         
-        let result = service.generate_response(&config, "test prompt").await;
+        let result = evaluator.generate_response(&config, "test prompt").await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
 
     #[tokio::test]
     async fn test_evaluate_response_missing_env_var() {
-        let mut service = EvaluationService::new();
+        let mut evaluator = Evaluator::new();
         let config = create_test_config();
         
         // Remove the evaluation environment variable if it exists
@@ -484,18 +484,18 @@ mod tests {
             std::env::remove_var(&config.eval_env_var_api_key);
         }
         
-        let result = service.evaluate_response(&config, "prompt", "response").await;
+        let result = evaluator.evaluate_response(&config, "prompt", "response").await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
 
     #[test]
     fn test_parse_evaluation_response_valid_json() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": 0.8, "completeness": 0.9}, "feedback": "Good response"}"#;
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&0.8));
@@ -506,11 +506,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_embedded_json() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"Here is the evaluation: {"scores": {"correctness": 0.7}, "feedback": "Decent"} That's all."#;
         let categories = vec!["correctness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&0.7));
@@ -519,11 +519,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_no_scores_object() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"feedback": "No scores provided"}"#;
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert!(result.scores.is_empty());
@@ -532,11 +532,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_missing_category_score() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": 0.8}, "feedback": "Missing completeness"}"#;
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&0.8));
@@ -545,11 +545,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_non_numeric_score() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": "invalid"}, "feedback": "Non-numeric score"}"#;
         let categories = vec!["correctness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&0.0)); // Default for invalid
@@ -557,11 +557,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_missing_feedback() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": 0.5}}"#;
         let categories = vec!["correctness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&0.5));
@@ -570,11 +570,11 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_score_clamping() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": 1.5, "completeness": -0.5}, "feedback": "Clamping test"}"#;
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
 
-        let result = service
+        let result = evaluator
             .parse_evaluation_response(response, &categories)
             .unwrap();
         assert_eq!(result.scores.get("correctness"), Some(&1.0)); // Clamped to 1.0
@@ -583,37 +583,37 @@ mod tests {
 
     #[test]
     fn test_parse_evaluation_response_invalid_json() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"invalid json content"#;
         let categories = vec!["correctness".to_string()];
 
-        let result = service.parse_evaluation_response(response, &categories);
+        let result = evaluator.parse_evaluation_response(response, &categories);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_evaluation_response_no_closing_brace() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"{"scores": {"correctness": 0.8"#; // Missing closing brace
         let categories = vec!["correctness".to_string()];
 
-        let result = service.parse_evaluation_response(response, &categories);
+        let result = evaluator.parse_evaluation_response(response, &categories);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_evaluation_response_no_opening_brace() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let response = r#"scores": {"correctness": 0.8}}"#; // Missing opening brace
         let categories = vec!["correctness".to_string()];
 
-        let result = service.parse_evaluation_response(response, &categories);
+        let result = evaluator.parse_evaluation_response(response, &categories);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_calculate_statistics_normal_case() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let mut results = vec![];
 
         for scores in vec![
@@ -634,7 +634,7 @@ mod tests {
 
         let result_refs: Vec<&EvaluationResult> = results.iter().collect();
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
-        let stats = service.calculate_statistics(&result_refs, &categories);
+        let stats = evaluator.calculate_statistics(&result_refs, &categories);
 
         // Mean: (0.8 + 0.6 + 0.8) / 3 = 0.733...
         assert!((stats.mean.get("correctness").unwrap() - 0.7333333333333333).abs() < 0.0001);
@@ -644,11 +644,11 @@ mod tests {
 
     #[test]
     fn test_calculate_statistics_empty_results() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let results: Vec<&EvaluationResult> = vec![];
         let categories = vec!["correctness".to_string()];
         
-        let stats = service.calculate_statistics(&results, &categories);
+        let stats = evaluator.calculate_statistics(&results, &categories);
         assert_eq!(stats.mean.get("correctness"), Some(&0.0));
         assert_eq!(stats.median.get("correctness"), Some(&0.0));
         assert_eq!(stats.mode.get("correctness"), Some(&0.0));
@@ -656,7 +656,7 @@ mod tests {
 
     #[test]
     fn test_calculate_statistics_single_result() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let mut score_map = HashMap::new();
         score_map.insert("correctness".to_string(), 0.75);
         
@@ -668,7 +668,7 @@ mod tests {
         
         let result_refs: Vec<&EvaluationResult> = vec![&result];
         let categories = vec!["correctness".to_string()];
-        let stats = service.calculate_statistics(&result_refs, &categories);
+        let stats = evaluator.calculate_statistics(&result_refs, &categories);
         
         assert_eq!(stats.mean.get("correctness"), Some(&0.75));
         assert_eq!(stats.median.get("correctness"), Some(&0.75));
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn test_calculate_statistics_even_number_results() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let mut results = vec![];
         
         for score in vec![0.6, 0.7, 0.8, 0.9] {
@@ -692,7 +692,7 @@ mod tests {
         
         let result_refs: Vec<&EvaluationResult> = results.iter().collect();
         let categories = vec!["correctness".to_string()];
-        let stats = service.calculate_statistics(&result_refs, &categories);
+        let stats = evaluator.calculate_statistics(&result_refs, &categories);
     
         // Mean: (0.6 + 0.7 + 0.8 + 0.9) / 4 = 0.75
         assert!((stats.mean.get("correctness").unwrap() - 0.75).abs() < 1e-6);
@@ -702,7 +702,7 @@ mod tests {
 
     #[test]
     fn test_calculate_statistics_missing_score_data() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let mut score_map = HashMap::new();
         score_map.insert("correctness".to_string(), 0.8);
         // Missing "completeness" category
@@ -715,7 +715,7 @@ mod tests {
         
         let result_refs: Vec<&EvaluationResult> = vec![&result];
         let categories = vec!["correctness".to_string(), "completeness".to_string()];
-        let stats = service.calculate_statistics(&result_refs, &categories);
+        let stats = evaluator.calculate_statistics(&result_refs, &categories);
         
         assert_eq!(stats.mean.get("correctness"), Some(&0.8));
         assert_eq!(stats.mean.get("completeness"), Some(&0.0)); // Default for missing
@@ -723,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_calculate_statistics_mode_calculation() {
-        let service = EvaluationService::new();
+        let evaluator = Evaluator::new();
         let mut results = vec![];
         
         // Create results where 0.8 appears most frequently
@@ -739,7 +739,7 @@ mod tests {
         
         let result_refs: Vec<&EvaluationResult> = results.iter().collect();
         let categories = vec!["correctness".to_string()];
-        let stats = service.calculate_statistics(&result_refs, &categories);
+        let stats = evaluator.calculate_statistics(&result_refs, &categories);
         
         assert_eq!(stats.mode.get("correctness"), Some(&0.8));
     }
