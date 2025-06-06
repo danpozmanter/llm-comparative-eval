@@ -49,7 +49,7 @@ fn default_max_tokens() -> u32 {
 }
 
 fn default_rate_limit() -> f64 {
-    10.0
+    0.25
 }
 
 /// Root configuration containing list of evaluations
